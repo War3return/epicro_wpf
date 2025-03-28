@@ -1,0 +1,99 @@
+﻿<Window x:Class="epicro_wpf.views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:epicro_wpf"
+        mc:Ignorable="d"
+        Title="epicro" Height="360" Width="690">
+    <Grid HorizontalAlignment="Center" Width="658" Margin="0,0,0,-6">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <GroupBox Header="인식대상" Margin="10,10,0,0" HorizontalAlignment="Left" Width="236" Height="93" VerticalAlignment="Top">
+            <Label x:Name="labelProcess" Content="{Binding TargetWindowDisplay}" HorizontalAlignment="Left" Height="71" Width="153"/>
+        </GroupBox>
+        <Button x:Name="btnProcessSet" Content="설정" Command="{Binding OpenTargetSelectCommand}" HorizontalAlignment="Left" Margin="171,27,0,0" VerticalAlignment="Top" Width="64" Height="25"/>
+        <Button x:Name="btnProcessReset" Content="리셋" HorizontalAlignment="Left" Margin="171,66,0,0" VerticalAlignment="Top" Width="64" Height="25"/>
+        <TabControl Margin="5,123,0,0" HorizontalAlignment="Left" Width="241" Height="180" VerticalAlignment="Top">
+            <TabItem Header="벨트">
+                <Grid Background="#FFE5E5E5" Height="150">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="btnBeltStart" Content="시작" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="64" Height="25"/>
+                    <Button x:Name="btnBeltStop" Content="중지" Margin="0,10,0,0" VerticalAlignment="Top" Height="25" HorizontalAlignment="Center" Width="64"/>
+                    <Button x:Name="btnBeltSet" Content="설정" Margin="0,10,10,0" VerticalAlignment="Top" Height="25" HorizontalAlignment="Right" Width="64"/>
+                    <GroupBox Header="온오프" Margin="10,40,129,0" IsEnabled="True" Height="98" VerticalAlignment="Top">
+                        <StackPanel>
+                            <CheckBox Content="세이브" Margin="5" IsChecked="False" IsEnabled="True"/>
+                            <CheckBox Content="범줍" Margin="5" IsChecked="False" IsEnabled="True"/>
+                            <CheckBox Content="영웅선택" Margin="5" IsChecked="False" IsEnabled="True"/>
+                        </StackPanel>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+            <TabItem Header="보스" Margin="2,-2,-2,0">
+                <Grid Background="#FFE5E5E5" Height="150">
+                    <Button Content="시작" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" Width="64" Height="25"/>
+                    <Button Content="중지" HorizontalAlignment="Center" Margin="0,10,0,0" VerticalAlignment="Top" Width="64" Height="25"/>
+                    <Button Content="설정" HorizontalAlignment="Left" Margin="161,10,0,0" VerticalAlignment="Top" Width="64" Height="25"/>
+                    <GroupBox Header="인식방법" Margin="118,41,10,0" Height="48" VerticalAlignment="Top">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="81*"/>
+                                <ColumnDefinition Width="82*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <RadioButton Content="골드" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                            <RadioButton Content="목재" HorizontalAlignment="Left" VerticalAlignment="Center" Grid.Column="1" Margin="5,0,0,0"/>
+                        </Grid>
+                    </GroupBox>
+                    <GroupBox Header="보스존" Margin="2,40,117,0" Height="49" VerticalAlignment="Top">
+                        <ComboBox Margin="0,0,-2,0" Height="24">
+                            <ComboBoxItem Content="옵션 1" />
+                            <ComboBoxItem Content="옵션 2" />
+                            <ComboBoxItem Content="옵션 3" />
+                        </ComboBox>
+                    </GroupBox>
+                    <GroupBox Header="소환순" Margin="2,89,117,0" Height="49" VerticalAlignment="Top">
+                        <TextBox HorizontalAlignment="Left" TextWrapping="Wrap" Width="106"/>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+        </TabControl>
+        <DataGrid x:Name="dataBoss" d:ItemsSource="{d:SampleData ItemCount=5}" Margin="256,142,13,0" IsReadOnly="True" Height="161" VerticalAlignment="Top"/>
+        <TextBox x:Name="txtLog" Margin="385,10,13,0" TextWrapping="Wrap" VerticalAlignment="Top" Height="117" IsReadOnly="True"/>
+        <GroupBox Header="잠금" Margin="256,10,0,0" IsEnabled="True" Height="117" VerticalAlignment="Top" HorizontalAlignment="Left" Width="114">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+
+                <CheckBox Content="7번" Grid.Row="0" Grid.Column="0"/>
+                <CheckBox Content="8번" Grid.Row="0" Grid.Column="1"/>
+                <CheckBox Content="4번" Grid.Row="1" Grid.Column="0"/>
+                <CheckBox Content="5번" Grid.Row="1" Grid.Column="1"/>
+                <CheckBox Content="1번" Grid.Row="2" Grid.Column="0"/>
+                <CheckBox Content="2번" Grid.Row="2" Grid.Column="1"/>
+                <Button Content="잠금" Margin="19,0,0,0" VerticalAlignment="Center" Height="24" HorizontalAlignment="Left" Width="64" Grid.ColumnSpan="2" Grid.Row="3"/>
+            </Grid>
+        </GroupBox>
+        <Button Content="테스트" Command="{Binding CaptureCommand}" HorizontalAlignment="Left" Margin="141,112,0,0" VerticalAlignment="Top"/>
+
+
+    </Grid>
+</Window>
