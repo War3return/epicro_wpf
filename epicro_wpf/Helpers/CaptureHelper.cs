@@ -12,7 +12,8 @@ using Windows.Storage.Streams;
 using System.IO;
 using Windows.Graphics;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
+using epicro_wpf.Helpers;
+
 
 namespace epicro_wpf.Helpers
 {
@@ -20,7 +21,7 @@ namespace epicro_wpf.Helpers
     [ComImport]
     [Guid("79C3F95B-31F7-4ec2-A464-632EF5D30760")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    interface IGraphicsCaptureItemInterop
+    public interface IGraphicsCaptureItemInterop
     {
         /// <summary>
         /// 주어진 window 핸들을 사용하여 GraphicsCaptureItem을 생성합니다.
@@ -35,13 +36,63 @@ namespace epicro_wpf.Helpers
 
     public class CaptureHelper : IDisposable
     {
+        static readonly Guid GraphicsCaptureItemGuid = new Guid("79C3F95B-31F7-4EC2-A464-632EF5D30760");
+
         private GraphicsCaptureItem? _captureItem;
         private IDirect3DDevice? _d3dDevice;
         private Direct3D11CaptureFramePool? _framePool;
         private GraphicsCaptureSession? _session;
         private SizeInt32 _captureSize;
         private Action<SoftwareBitmap>? _onFrameCaptured;
+        [DllImport("d3d11.dll")]
+        private static extern int D3D11CreateDevice(
+            IntPtr pAdapter,
+            int DriverType,
+            IntPtr Software,
+            uint Flags,
+            IntPtr pFeatureLevels,
+            uint FeatureLevels,
+            uint SDKVersion,
+            out IntPtr ppDevice,
+            out int pFeatureLevel,
+            out IntPtr ppImmediateContext
+);
 
+        [DllImport("windows.graphics.capture.interop.dll")]
+        private static extern int CreateDirect3D11DeviceFromDXGIDevice(
+            IntPtr dxgiDevice,
+            out IntPtr graphicsDevice
+        );
+
+        /// <summary>
+        /// D3D11 Device를 생성하고 WinRT IDirect3DDevice로 변환
+        /// </summary>
+        /// 
+
+        [DllImport("windows.graphics.directx.direct3d11.dll", ExactSpelling = true)]
+        private static extern IDirect3DDevice CreateDirect3DDevice(IntPtr dxgiDevice);
+
+        public static IDirect3DDevice CreateD3DDevice()
+        {
+            // 1. SharpDX로 D3D11 Device 생성
+            var dxgiFactory = new SharpDX.DXGI.Factory1();
+            var adapter = dxgiFactory.GetAdapter1(0);
+            var d3dDevice = new SharpDX.Direct3D11.Device(adapter);
+
+            // 2. DXGI Device로 변환
+            var dxgiDevice = d3dDevice.QueryInterface<SharpDX.DXGI.Device>();
+
+            // 3. WinRT IDirect3DDevice로 변환
+            IntPtr graphicsDevicePtr;
+            int hr = CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.NativePointer, out graphicsDevicePtr);
+            if (hr != 0)
+                Marshal.ThrowExceptionForHR(hr);
+
+            var d3dInteropDevice = Marshal.GetObjectForIUnknown(graphicsDevicePtr) as IDirect3DDevice;
+            Marshal.Release(graphicsDevicePtr);
+
+            return d3dInteropDevice ?? throw new InvalidOperationException("D3D Device 생성 실패");
+        }
 
         public CaptureHelper(GraphicsCaptureItem item)
         {
@@ -56,26 +107,30 @@ namespace epicro_wpf.Helpers
             var adapter = dxgiFactory.GetAdapter1(0);
             var device = new SharpDX.Direct3D11.Device(adapter);
             // WinRT용 Direct3D 디바이스 생성
-            _d3dDevice = Direct3D11Helper.CreateDirect3DDevice(device.NativePointer);
-            _captureSize = _captureItem?.Size ?? throw new InvalidOperationException("Capture item is null.");
+            // WinRT 디바이스로 변환
+            _d3dDevice = CreateD3DDevice();
+            _captureSize = _captureItem.Size;
         }
+
+
 
         public static GraphicsCaptureItem CreateItemForWindow(IntPtr hwnd)
         {
-            // GraphicsCaptureItem의 활성화 팩토리를 가져옵니다.
-       object factory = WinRTHelper.GetActivationFactory(typeof(Windows.Graphics.Capture.GraphicsCaptureItem));
-            IGraphicsCaptureItemInterop interop = (IGraphicsCaptureItemInterop)factory;
+            var interop = WinRTHelper.GetInterop();
+            var iid = typeof(GraphicsCaptureItem).GUID;
+            interop.CreateForWindow(hwnd, ref iid, out object itemObj);
 
-            // GraphicsCaptureItem의 인터페이스 GUID
-            Guid iid = typeof(GraphicsCaptureItem).GUID;
-
-            // 캡처 아이템 생성
-            int hr = interop.CreateForWindow(hwnd, ref iid, out object result);
-            if (hr != 0)
+            try
             {
-                Marshal.ThrowExceptionForHR(hr);
+                IntPtr itemPtr = Marshal.GetIUnknownForObject(itemObj);
+                var item = Marshal.GetObjectForIUnknown(itemPtr) as GraphicsCaptureItem;
+                return item;
             }
-            return (GraphicsCaptureItem)result;
+            finally
+            {
+                if (itemObj != null)
+                    Marshal.Release(Marshal.GetIUnknownForObject(itemObj));
+            }
         }
 
         /// <summary>
@@ -101,6 +156,54 @@ namespace epicro_wpf.Helpers
                 // 비동기적으로 SoftwareBitmap 생성 (캡처된 전체 이미지)
                 SoftwareBitmap bitmap = await SoftwareBitmap.CreateCopyFromSurfaceAsync(frame.Surface);
                 _onFrameCaptured?.Invoke(bitmap);
+            }
+        }
+
+        public async Task<SoftwareBitmap> CaptureToBitmapAsync()
+        {
+            var tcs = new TaskCompletionSource<SoftwareBitmap>();
+
+            var framePool = Direct3D11CaptureFramePool.Create(
+                _d3dDevice,
+                DirectXPixelFormat.B8G8R8A8UIntNormalized,
+                1,
+                _captureSize);
+            var session = framePool.CreateCaptureSession(_captureItem);
+
+            TypedEventHandler<Direct3D11CaptureFramePool, object> handler = null;
+            handler = async (s, e) =>
+            {
+                using (var frame = s.TryGetNextFrame())
+                {
+                    var bitmap = await SoftwareBitmap.CreateCopyFromSurfaceAsync(frame.Surface);
+                    tcs.TrySetResult(bitmap);
+                }
+
+                // 반드시 FrameArrived 핸들러에서 바로 해제하지 말 것 (AccessViolation 원인)
+                // 해제 요청만 예약
+                framePool.FrameArrived -= handler;
+            };
+
+            framePool.FrameArrived += handler;
+            session.StartCapture();
+
+            var result = await tcs.Task;
+
+            // 안전하게 캡처 완료 후 Dispose
+            session.Dispose();
+            framePool.Dispose();
+
+            return result;
+        }
+
+
+        public static async Task SaveSoftwareBitmapToFileAsync(SoftwareBitmap bitmap, string filePath)
+        {
+            using (var stream = File.OpenWrite(filePath))
+            {
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream.AsRandomAccessStream());
+                encoder.SetSoftwareBitmap(bitmap);
+                await encoder.FlushAsync();
             }
         }
 

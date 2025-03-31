@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using Windows.Graphics.Capture;
 
 namespace epicro_wpf.Helpers
 {
@@ -22,6 +23,45 @@ namespace epicro_wpf.Helpers
         /// </summary>
         /// <param name="type">활성화 팩토리를 얻고자 하는 WinRT 타입</param>
         /// <returns>활성화 팩토리 객체</returns>
+        /// 
+        public static IGraphicsCaptureItemInterop GetInterop()
+        {
+            string runtimeClassName = "Windows.Graphics.Capture.GraphicsCaptureItem";
+
+            // HSTRING 생성
+            WindowsCreateString(runtimeClassName, (uint)runtimeClassName.Length, out var hstring);
+
+            // IActivationFactory 얻기
+            var iid = new Guid("00000035-0000-0000-C000-000000000046"); // IActivationFactory GUID
+            RoGetActivationFactory(hstring, ref iid, out var factoryPtr);
+            WindowsDeleteString(hstring);
+
+            // QueryInterface로 IGraphicsCaptureItemInterop 얻기
+            var interopGuid = new Guid("79C3F95B-31F7-4ec2-A464-632EF5D30760");
+            Marshal.QueryInterface(factoryPtr, ref interopGuid, out var interopPtr);
+            Marshal.Release(factoryPtr);
+
+            return (IGraphicsCaptureItemInterop)Marshal.GetObjectForIUnknown(interopPtr);
+        }
+
+        public static Windows.Graphics.Capture.GraphicsCaptureItem CreateCaptureItemForWindow(IntPtr hwnd)
+        {
+            var interop = GetInterop();
+            var iid = typeof(GraphicsCaptureItem).GUID;
+            interop.CreateForWindow(hwnd, ref iid, out object itemObj);
+
+            try
+            {
+                IntPtr itemPtr = Marshal.GetIUnknownForObject(itemObj);
+                var item = Marshal.GetObjectForIUnknown(itemPtr) as GraphicsCaptureItem;
+                return item;
+            }
+            finally
+            {
+                if (itemObj != null)
+                    Marshal.Release(Marshal.GetIUnknownForObject(itemObj));
+            }
+        }
         public static object GetActivationFactory(Type type)
         {
             if (type == null)

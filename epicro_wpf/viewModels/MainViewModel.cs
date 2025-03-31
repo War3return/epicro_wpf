@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.IO;
 using System.Windows.Input;
 using System.Diagnostics;
 using epicro_wpf.Models;
@@ -6,73 +7,104 @@ using epicro_wpf.views;
 using System.Windows;
 // Microsoft 배포 헬퍼 네임스페이스 (실제 네임스페이스로 수정 필요)
 using epicro_wpf.Helpers;
+using System.Windows.Interop;
+using Windows.Graphics.Capture;
+using WinRT.Interop;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace epicro_wpf.viewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private WindowInfo _targetWindow;
-        public WindowInfo TargetWindow
+        private string _targetWindowDisplay = "대상 없음";
+        public string TargetWindowDisplay
         {
-            get => _targetWindow;
+            get => _targetWindowDisplay;
             set
             {
-                _targetWindow = value;
-                OnPropertyChanged(nameof(TargetWindowDisplay));
+                if (_targetWindowDisplay != value)
+                {
+                    _targetWindowDisplay = value;
+                    OnPropertyChanged();
+                }
             }
         }
 
-        public ICommand OpenTargetSelectCommand => new RelayCommand(OpenTargetSelect);
-
-        private void OpenTargetSelect()
+        private GraphicsCaptureItem _selectedCaptureItem;
+        public GraphicsCaptureItem SelectedCaptureItem
         {
-            var vm = new TargetWindowViewModel();
-            var win = new TargetWindowSelectWindow
+            get => _selectedCaptureItem;
+            set
             {
-                DataContext = vm
-            };
-
-            bool? result = win.ShowDialog();
-
-            if (result == true && vm.SelectedWindow != null)
-            {
-                TargetWindow = vm.SelectedWindow;
-                Debug.WriteLine($"선택된 창: {TargetWindow.Title}");
+                if (_selectedCaptureItem != value)
+                {
+                    _selectedCaptureItem = value;
+                    TargetWindowDisplay = value?.DisplayName ?? "대상 없음";
+                    OnPropertyChanged();
+                }
             }
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged(string name) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        public ICommand OpenTargetSelectCommand { get; }
+        public ICommand OpenROISelectCommand { get; }
 
-        public string TargetWindowDisplay =>
-            TargetWindow != null ? $"{TargetWindow.Title} ({TargetWindow.ProcessId})" : "선택된 프로세스 없음";
-
-        public ICommand CaptureCommand => new RelayCommand(CaptureTargetWindow);
-
-        private async void CaptureTargetWindow()
+        public MainViewModel()
         {
-            if (TargetWindow == null)
-            {
-                MessageBox.Show("먼저 인식대상을 설정해주세요.");
-                return;
-            }
+            OpenTargetSelectCommand = new RelayCommand(async () => await SelectTargetWindow());
+            OpenROICommand = new RelayCommand(OpenROIWindow);
+        }
 
+        private async Task SelectTargetWindow()
+        {
             try
             {
-                var path = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    "capture.png");
-                // Microsoft 배포 라이브러리에서 제공하는 캡처 헬퍼 호출
-                // 예시로 CaptureHelper 클래스의 Capture 메서드를 사용합니다.
-                await WgcCaptureUtil.CaptureWindowToPngAsync(TargetWindow.Handle, path);
-                MessageBox.Show($"캡처 완료!\n{path}");
+                var picker = new GraphicsCapturePicker();
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(System.Windows.Application.Current.MainWindow).Handle;
+                InitializeWithWindow.Initialize(picker, hwnd);
+
+                var item = await picker.PickSingleItemAsync();
+                if (item != null)
+                {
+                    SelectedCaptureItem = item;
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"캡처 실패: {ex.Message}");
+                // 로그 출력용 (원하면 txtLog에 연결 가능)
+                System.Diagnostics.Debug.WriteLine($"[에러] {ex.Message}");
             }
         }
 
+        public ICommand OpenROICommand { get; }
+
+        private async void OpenROIWindow()
+        {
+            if (SelectedCaptureItem == null)
+                return;
+
+            var helper = new CaptureHelper(SelectedCaptureItem);
+            var bitmap = await helper.CaptureToBitmapAsync();
+            var filePath = Path.Combine(Environment.CurrentDirectory, "capture.png");
+
+            await CaptureHelper.SaveSoftwareBitmapToFileAsync(bitmap, filePath);
+
+            // 2. ROI Window Open
+            var roiWindow = new ROIWindow(filePath);
+            var result = roiWindow.ShowDialog();
+            if (result == true && roiWindow.SelectedROI.HasValue)
+            {
+                var roi = roiWindow.SelectedROI.Value;
+                System.Diagnostics.Debug.WriteLine($"ROI: {roi.X}, {roi.Y}, {roi.Width}, {roi.Height}");
+                // 여기에 저장 처리 추가
+            }
+        }
+
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
     }
 }

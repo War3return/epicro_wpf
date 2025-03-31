@@ -22,7 +22,7 @@ namespace epicro_wpf.views
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+            this.DataContext = new MainViewModel();
         }
         private void StartHwndCapture(IntPtr hwnd)
         {
