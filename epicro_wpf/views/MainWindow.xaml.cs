@@ -8,7 +8,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using epicro_wpf.Helpers;
 using epicro_wpf.viewModels;
+using Windows.Graphics.Capture;
 
 namespace epicro_wpf.views
 {
@@ -21,6 +23,9 @@ namespace epicro_wpf.views
         {
             InitializeComponent();
             DataContext = new MainViewModel();
+        }
+        private void StartHwndCapture(IntPtr hwnd)
+        {
         }
     }
 }

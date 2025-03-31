@@ -3,8 +3,9 @@ using System.Windows.Input;
 using System.Diagnostics;
 using epicro_wpf.Models;
 using epicro_wpf.views;
-using epicro_wpf.Helpers;
 using System.Windows;
+// Microsoft 배포 헬퍼 네임스페이스 (실제 네임스페이스로 수정 필요)
+using epicro_wpf.Helpers;
 
 namespace epicro_wpf.viewModels
 {
@@ -31,7 +32,7 @@ namespace epicro_wpf.viewModels
                 DataContext = vm
             };
 
-            bool? result = win.ShowDialog(); // ✅ 한 번만 호출
+            bool? result = win.ShowDialog();
 
             if (result == true && vm.SelectedWindow != null)
             {
@@ -46,9 +47,10 @@ namespace epicro_wpf.viewModels
 
         public string TargetWindowDisplay =>
             TargetWindow != null ? $"{TargetWindow.Title} ({TargetWindow.ProcessId})" : "선택된 프로세스 없음";
+
         public ICommand CaptureCommand => new RelayCommand(CaptureTargetWindow);
 
-        private void CaptureTargetWindow()
+        private async void CaptureTargetWindow()
         {
             if (TargetWindow == null)
             {
@@ -58,9 +60,12 @@ namespace epicro_wpf.viewModels
 
             try
             {
-                var bitmap = WgcCaptureHelper.Capture(TargetWindow.Handle);
-                var path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "capture.png");
-                bitmap.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+                var path = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    "capture.png");
+                // Microsoft 배포 라이브러리에서 제공하는 캡처 헬퍼 호출
+                // 예시로 CaptureHelper 클래스의 Capture 메서드를 사용합니다.
+                await WgcCaptureUtil.CaptureWindowToPngAsync(TargetWindow.Handle, path);
                 MessageBox.Show($"캡처 완료!\n{path}");
             }
             catch (Exception ex)
@@ -68,5 +73,6 @@ namespace epicro_wpf.viewModels
                 MessageBox.Show($"캡처 실패: {ex.Message}");
             }
         }
+
     }
 }
