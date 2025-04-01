@@ -1,9 +1,0 @@
-ID3D11Device
-D3D11CreateDevice
-IDXGIDevice
-CreateDirect3D11DeviceFromDXGIDevice
-GraphicsCaptureItem
-d3d11.h
-dxgi.h
-dxgi1_2.h
-windows.graphics.capture.h

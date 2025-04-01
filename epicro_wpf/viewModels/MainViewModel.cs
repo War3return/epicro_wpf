@@ -46,9 +46,8 @@ namespace epicro_wpf.viewModels
             }
         }
 
-        public ICommand OpenTargetSelectCommand { get; }
-        public ICommand OpenROISelectCommand { get; }
-
+        public ICommand OpenTargetSelectCommand { get; } = null!;
+        public ICommand OpenROISelectCommand { get; } = null!;
         public MainViewModel()
         {
             OpenTargetSelectCommand = new RelayCommand(async () => await SelectTargetWindow());

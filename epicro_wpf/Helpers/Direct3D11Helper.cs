@@ -1,60 +1,57 @@
-﻿using Windows.Graphics.DirectX.Direct3D11;
-using WinRT;
-using Windows.Graphics.Capture;
-using Windows.Graphics.DirectX;
-using Windows.Foundation;
+﻿using Vortice.Direct3D11;
+using Vortice.DXGI;
+using Windows.Graphics.DirectX.Direct3D11;
 using System.Runtime.InteropServices;
+using WinRT;
+using Vortice.Direct3D;
 
-public static class Direct3D11Helper
+namespace epicro_wpf.Helpers
 {
-    [DllImport("d3d11.dll", SetLastError = true)]
-    private static extern int D3D11CreateDevice(
-        IntPtr adapter,
-        int driverType,
-        IntPtr software,
-        uint flags,
-        IntPtr featureLevels,
-        uint featureLevelsCount,
-        uint sdkVersion,
-        out IntPtr device,
-        out IntPtr immediateContext,
-        out IntPtr featureLevel);
-
-    [DllImport("Windows.Graphics.dll")]
-    private static extern int CreateDirect3D11DeviceFromDXGIDevice(IntPtr dxgiDevice, out IntPtr graphicsDevice);
-
-    public static IDirect3DDevice CreateD3DDevice()
+    public static class Direct3D11Helper
     {
-        IntPtr devicePtr;
-        IntPtr context;
-        IntPtr featureLevel;
+        [DllImport("d3d11.dll")]
+        public static extern int D3D11CreateDevice(
+            IntPtr pAdapter,
+            int DriverType,
+            IntPtr Software,
+            int Flags,
+            IntPtr pFeatureLevels,
+            int FeatureLevels,
+            int SDKVersion,
+            out IntPtr ppDevice,
+            out int pFeatureLevel,
+            out IntPtr ppImmediateContext);
 
-        int hr = D3D11CreateDevice(
-            IntPtr.Zero, // Default Adapter
-            1,           // D3D_DRIVER_TYPE_HARDWARE
-            IntPtr.Zero,
-            0x20,        // D3D11_CREATE_DEVICE_BGRA_SUPPORT
-            IntPtr.Zero,
-            0,
-            7, // D3D11_SDK_VERSION
-            out devicePtr,
-            out context,
-            out featureLevel);
+        [DllImport("Windows.Graphics.Capture.dll")]
+        public static extern int CreateDirect3D11DeviceFromDXGIDevice(IntPtr dxgiDevice, out IntPtr graphicsDevice);
 
-        if (hr != 0)
-            Marshal.ThrowExceptionForHR(hr);
+        public static (ID3D11Device d3dDevice, ID3D11DeviceContext d3dContext) CreateDevice()
+        {
+            // 디바이스 생성 플래그 설정
+            DeviceCreationFlags creationFlags = DeviceCreationFlags.BgraSupport;
 
-        IntPtr d3dDevice;
-        hr = CreateDirect3D11DeviceFromDXGIDevice(devicePtr, out d3dDevice);
+            // 지원할 피처 레벨 배열 정의
+            FeatureLevel[] featureLevels = new[]
+            {
+                FeatureLevel.Level_11_1,
+                FeatureLevel.Level_11_0,
+                FeatureLevel.Level_10_1,
+                FeatureLevel.Level_10_0,
+                FeatureLevel.Level_9_3,
+                FeatureLevel.Level_9_2,
+                FeatureLevel.Level_9_1
+    };
 
-        if (hr != 0)
-            Marshal.ThrowExceptionForHR(hr);
+            // Direct3D 11 디바이스 및 디바이스 컨텍스트 생성
+            D3D11.D3D11CreateDevice(
+                null, // 기본 어댑터 사용
+                DriverType.Hardware,
+                creationFlags,
+                featureLevels,
+                out ID3D11Device d3dDevice,
+                out ID3D11DeviceContext d3dContext);
 
-        var device = MarshalInterface<IDirect3DDevice>.FromAbi(d3dDevice);
-        Marshal.Release(devicePtr);
-        Marshal.Release(context);
-        Marshal.Release(featureLevel);
-
-        return device;
+            return (d3dDevice, d3dContext);
+        }
     }
 }
